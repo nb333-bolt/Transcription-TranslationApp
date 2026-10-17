@@ -1,0 +1,6 @@
+{
+  "name": "OmniVoice & Video Studio - Transcribe, Translate & Summarize",
+  "description": "Real-time multilingual transcription, speech translation, and intelligent executive summarization for voice and video recordings, with instant PDF and DOCX exports.",
+  "requestFramePermissions": ["camera", "microphone", "display-capture"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
