@@ -89,14 +89,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </button>
           )}
 
-          {/* 6. Deploy & Integrations (Azure, Netlify, Teams, Outlook, API Keys) */}
+          {/* 6. Deploy & Integrations (Netlify, Teams, Outlook, Gemini & Azure SDK) */}
           {onOpenDeploy && (
             <button
               onClick={onOpenDeploy}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium text-blue-300 hover:text-white hover:bg-blue-950/40 border border-blue-800/40 hover:border-blue-700 transition-colors"
-              title="Deploy to Azure, Netlify, configure Teams & Outlook, and manage API keys"
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium text-emerald-300 hover:text-white hover:bg-emerald-950/40 border border-emerald-800/40 hover:border-emerald-700 transition-colors cursor-pointer"
+              title="Deploy to Netlify, configure Teams & Outlook, and manage Gemini & Azure SDK keys"
             >
-              <Cloud className="w-4 h-4 shrink-0 text-blue-400" />
+              <Cloud className="w-4 h-4 shrink-0 text-emerald-400" />
               <span className="hidden md:inline">Deploy &amp; Cloud</span>
             </button>
           )}

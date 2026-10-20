@@ -27,6 +27,12 @@ export interface RecordingResult {
   id: string;
   title: string;
   createdAt: string;
+  date?: string;
+  meetingId?: string;
+  roomName?: string;
+  speakersList?: string[];
+  agenda?: AgendaItem[];
+  objective?: string;
   durationSeconds: number;
   durationFormatted: string;
   mediaType: 'audio' | 'video';

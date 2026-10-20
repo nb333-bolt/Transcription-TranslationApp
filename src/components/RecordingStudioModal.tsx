@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Mic, Video, Upload, Square, X, AlertCircle } from 'lucide-react';
+import { Mic, Video, Upload, Square, X, AlertCircle, Cpu } from 'lucide-react';
 import { AudioWaveformVisualizer } from './AudioWaveformVisualizer';
 import { LiveSpeechTracker } from '../utils/speechRecognition';
+import { AzureLiveSpeechClient, toAzureTranslatorCode } from '../utils/azureSpeechSDK';
 import { SUPPORTED_LANGUAGES } from '../constants/languages';
 import { RecordingResult } from '../types';
 
@@ -39,6 +40,7 @@ export const RecordingStudioModal: React.FC<RecordingStudioModalProps> = ({
   const videoPreviewRef = useRef<HTMLVideoElement | null>(null);
   const timerIntervalRef = useRef<any>(null);
   const speechTrackerRef = useRef<LiveSpeechTracker | null>(null);
+  const azureClientRef = useRef<AzureLiveSpeechClient | null>(null);
 
   useEffect(() => {
     speechTrackerRef.current = new LiveSpeechTracker('en-GB');
@@ -67,6 +69,10 @@ export const RecordingStudioModal: React.FC<RecordingStudioModalProps> = ({
     }
     if (speechTrackerRef.current) {
       speechTrackerRef.current.stop();
+    }
+    if (azureClientRef.current) {
+      azureClientRef.current.stop();
+      azureClientRef.current = null;
     }
   };
 
@@ -122,13 +128,52 @@ export const RecordingStudioModal: React.FC<RecordingStudioModalProps> = ({
       setIsRecording(true);
       startTimer();
 
-      if (speechTrackerRef.current && speechTrackerRef.current.isAvailable()) {
-        speechTrackerRef.current.start({
-          onTranscriptChange: (text) => {
-            setLiveTranscript(text);
-          },
-          onError: () => {},
-        });
+      // Prioritize Azure Speech SDK for live continuous transcription & speech translation
+      const azureClient = new AzureLiveSpeechClient();
+      azureClientRef.current = azureClient;
+      let usedAzure = false;
+
+      const startFallbackTracker = () => {
+        if (!speechTrackerRef.current) {
+          speechTrackerRef.current = new LiveSpeechTracker('en-US');
+        }
+        if (speechTrackerRef.current.isAvailable()) {
+          speechTrackerRef.current.start({
+            onTranscriptChange: (text) => {
+              setLiveTranscript(text);
+            },
+            onError: () => {},
+          });
+        }
+      };
+
+      if (azureClient.isConfigured()) {
+        try {
+          const targetLang = selectedTargetLangs[0] || 'Welsh';
+          const tgtCode = toAzureTranslatorCode(targetLang);
+          await azureClient.startLiveTranslation({
+            sourceLanguage: 'English',
+            targetLanguages: [tgtCode, 'cy', 'en'],
+            onRecognizing: (_orig, _trans, fullOrig) => {
+              setLiveTranscript(fullOrig);
+            },
+            onRecognized: (_orig, _trans, fullOrig) => {
+              setLiveTranscript(fullOrig);
+            },
+            onError: (err) => {
+              console.warn('Azure Speech SDK notice (switching to Web Speech fallback):', err);
+              startFallbackTracker();
+            },
+          });
+          usedAzure = true;
+        } catch (azureErr) {
+          console.warn('Azure Speech SDK fallback:', azureErr);
+          startFallbackTracker();
+        }
+      }
+
+      if (!usedAzure) {
+        startFallbackTracker();
       }
     } catch (err: any) {
       setErrorMessage(
@@ -179,7 +224,21 @@ export const RecordingStudioModal: React.FC<RecordingStudioModalProps> = ({
           mediaData: base64Data,
           mimeType,
           transcriptText: liveTranscript || undefined,
-          targetLanguages: selectedTargetLangs,
+          targetLanguages: selectedTargetLangs.length > 0
+            ? Array.from(new Set([...selectedTargetLangs, 'Welsh', 'English', 'French', 'Spanish', 'German', 'Hindi']))
+            : ['Welsh', 'English', 'French', 'Spanish', 'German', 'Hindi'],
+          geminiKey: localStorage.getItem('voice_studio_gemini_key') || undefined,
+          azureKey:
+            localStorage.getItem('voice_studio_azure_speech_key') ||
+            localStorage.getItem('voice_studio_azure_key') ||
+            localStorage.getItem('voice_studio_azure_translation_key') ||
+            undefined,
+          azureTranslationKey:
+            localStorage.getItem('voice_studio_azure_translation_key') ||
+            localStorage.getItem('voice_studio_azure_speech_key') ||
+            localStorage.getItem('voice_studio_azure_key') ||
+            undefined,
+          azureRegion: localStorage.getItem('voice_studio_azure_region') || undefined,
         }),
       });
 
@@ -250,7 +309,13 @@ export const RecordingStudioModal: React.FC<RecordingStudioModalProps> = ({
       <div className="relative w-full max-w-lg bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-2xl text-slate-100 flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-800">
-          <h2 className="text-sm font-semibold text-white">Record or Upload</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-sm font-semibold text-white">Record or Upload</h2>
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-500/10 text-blue-300 border border-blue-500/20 flex items-center gap-1">
+              <Cpu className="w-3 h-3 text-blue-400" />
+              <span>Azure Speech SDK</span>
+            </span>
+          </div>
           <button
             onClick={onClose}
             disabled={isRecording || isProcessing}

@@ -14,21 +14,78 @@ export const SummaryDashboard: React.FC<SummaryDashboardProps> = ({
   summary,
   selectedLanguage,
   sourceLanguage,
+  onUpdateSummary,
 }) => {
-  const [showTranslated, setShowTranslated] = useState(false);
+  const isDifferentLang = selectedLanguage.toLowerCase() !== sourceLanguage.toLowerCase();
+  const [viewMode, setViewMode] = useState<'translated' | 'original'>('translated');
   const [copied, setCopied] = useState(false);
+  const [isTranslatingSummary, setIsTranslatingSummary] = useState(false);
   const [actionItems, setActionItems] = useState<Array<ActionItem & { completed?: boolean }>>(
     summary.actionItems || []
   );
 
-  const translatedExecutive = summary.translatedExecutive?.[selectedLanguage];
+  const getTranslatedExecutive = (lang: string) => {
+    if (!summary.translatedExecutive) return '';
+    if (summary.translatedExecutive[lang]) return summary.translatedExecutive[lang];
+    const lower = lang.toLowerCase();
+    for (const [key, val] of Object.entries(summary.translatedExecutive)) {
+      if (key.toLowerCase() === lower || key.toLowerCase().includes(lower) || lower.includes(key.toLowerCase())) {
+        return val;
+      }
+    }
+    return '';
+  };
+
+  const translatedExecutive = getTranslatedExecutive(selectedLanguage);
   const summaryText =
-    showTranslated && translatedExecutive ? translatedExecutive : summary.executive;
+    isDifferentLang && viewMode === 'translated' && translatedExecutive
+      ? translatedExecutive
+      : summary.executive;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(summaryText);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
+  };
+
+  const handleTranslateSummaryOnDemand = async () => {
+    if (!summary.executive) return;
+    setIsTranslatingSummary(true);
+    try {
+      const storedGeminiKey = localStorage.getItem('voice_studio_gemini_key') || undefined;
+      const storedAzureKey = localStorage.getItem('voice_studio_azure_key') || undefined;
+      const storedAzureRegion = localStorage.getItem('voice_studio_azure_region') || undefined;
+
+      const res = await fetch('/api/realtime-translate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: summary.executive,
+          targetLanguage: selectedLanguage,
+          sourceLanguage,
+          geminiKey: storedGeminiKey,
+          azureKey: storedAzureKey,
+          azureRegion: storedAzureRegion,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.translatedText) {
+          onUpdateSummary({
+            ...summary,
+            translatedExecutive: {
+              ...(summary.translatedExecutive || {}),
+              [selectedLanguage]: data.translatedText,
+            },
+          });
+          setViewMode('translated');
+        }
+      }
+    } catch (e) {
+      console.warn('Summary translate error:', e);
+    } finally {
+      setIsTranslatingSummary(false);
+    }
   };
 
   const toggleAction = (idx: number) => {
@@ -42,14 +99,42 @@ export const SummaryDashboard: React.FC<SummaryDashboardProps> = ({
       {/* Summary Section */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <h3 className="text-xs font-semibold text-slate-200">Summary</h3>
           <div className="flex items-center gap-2">
-            {translatedExecutive && (
+            <h3 className="text-xs font-semibold text-slate-200">Executive Summary</h3>
+            {isDifferentLang && (
+              <div className="flex items-center bg-slate-950 p-0.5 rounded-lg border border-slate-800 text-[11px]">
+                <button
+                  onClick={() => setViewMode('original')}
+                  className={`px-2 py-0.5 rounded-md transition-colors ${
+                    viewMode === 'original'
+                      ? 'bg-slate-800 text-white font-medium'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  {sourceLanguage}
+                </button>
+                <button
+                  onClick={() => setViewMode('translated')}
+                  className={`px-2 py-0.5 rounded-md transition-colors ${
+                    viewMode === 'translated'
+                      ? 'bg-cyan-500/20 text-cyan-300 font-medium'
+                      : 'text-slate-400 hover:text-cyan-200'
+                  }`}
+                >
+                  {selectedLanguage}
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            {isDifferentLang && !translatedExecutive && (
               <button
-                onClick={() => setShowTranslated(!showTranslated)}
-                className="text-[11px] font-medium text-cyan-400 hover:underline"
+                onClick={handleTranslateSummaryOnDemand}
+                disabled={isTranslatingSummary}
+                className="text-[11px] font-medium text-cyan-400 hover:underline disabled:opacity-50"
               >
-                {showTranslated ? `View in ${sourceLanguage}` : `View in ${selectedLanguage}`}
+                {isTranslatingSummary ? 'Translating...' : `Translate to ${selectedLanguage}`}
               </button>
             )}
             <button
@@ -62,7 +147,7 @@ export const SummaryDashboard: React.FC<SummaryDashboardProps> = ({
           </div>
         </div>
 
-        <p className="text-xs text-slate-300 leading-relaxed">
+        <p className="text-xs text-slate-300 leading-relaxed min-h-[48px] p-2.5 rounded-lg bg-slate-950 border border-slate-800/80">
           {summaryText || 'No summary available.'}
         </p>
       </div>

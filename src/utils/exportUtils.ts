@@ -12,10 +12,128 @@ import {
   BorderStyle,
   AlignmentType,
 } from 'docx';
-import { RecordingResult } from '../types';
+import { RecordingResult, ScheduledMeeting, TranscriptSegment } from '../types';
 
 function sanitizeFilename(title: string): string {
   return title.replace(/[^a-z0-9_-]/gi, '_').toLowerCase();
+}
+
+/**
+ * Convert a ScheduledMeeting into a rich RecordingResult for export & preview
+ */
+export function convertMeetingToRecording(
+  meeting: ScheduledMeeting,
+  targetLang: string = 'Welsh'
+): RecordingResult {
+  const speakerNames = meeting.speakers?.map((s) => s.fullName) || ['Nisha Bhatt', 'Carys Evans'];
+  const primarySpeaker = speakerNames[0] || 'Meeting Host';
+  const durationTotalMins = meeting.agenda?.reduce((acc, a) => acc + (a.durationMinutes || 15), 0) || 60;
+  const durationFormatted = `${durationTotalMins}:00`;
+
+  // Build segments from agenda items
+  const segments: TranscriptSegment[] = (meeting.agenda && meeting.agenda.length > 0)
+    ? meeting.agenda.map((ag, idx) => {
+        const startMin = meeting.agenda.slice(0, idx).reduce((acc, a) => acc + (a.durationMinutes || 15), 0);
+        const endMin = startMin + (ag.durationMinutes || 15);
+        const startStr = `${startMin.toString().padStart(2, '0')}:00`;
+        const endStr = `${endMin.toString().padStart(2, '0')}:00`;
+        const presenter = ag.presenter || speakerNames[idx % speakerNames.length] || primarySpeaker;
+        const orig = `Agenda Item ${idx + 1}: ${ag.title}. ${ag.notes ? `Key Focus: ${ag.notes}` : `Objective: ${meeting.objective || 'Align on bilingual delivery'}`}`;
+
+        return {
+          id: `ag-seg-${ag.id || idx}`,
+          speaker: presenter,
+          startTime: startStr,
+          endTime: endStr,
+          startSeconds: startMin * 60,
+          endSeconds: endMin * 60,
+          originalText: orig,
+          translations: {
+            Welsh: `Eitem Agenda ${idx + 1}: ${ag.title}. ${ag.notes ? `Prif Ffocws: ${ag.notes}` : `Amcan: ${meeting.objective || 'Alinio ar ddarpariaeth ddwyieithog'}`}`,
+            English: orig,
+            Spanish: `Punto ${idx + 1} de la agenda: ${ag.title}.`,
+            French: `Point ${idx + 1} de l'ordre du jour: ${ag.title}.`,
+            German: `Tagesordnungspunkt ${idx + 1}: ${ag.title}.`,
+            Hindi: `कार्यसूची मद ${idx + 1}: ${ag.title}.`,
+          },
+        };
+      })
+    : [
+        {
+          id: 'seg-init',
+          speaker: primarySpeaker,
+          startTime: '00:00',
+          endTime: durationFormatted,
+          startSeconds: 0,
+          endSeconds: durationTotalMins * 60,
+          originalText: `Meeting session for ${meeting.title}. Objective: ${meeting.objective || 'Bilingual consultation & strategy alignment'}.`,
+          translations: {
+            Welsh: `Sesiwn cyfarfod ar gyfer ${meeting.title}. Amcan: ${meeting.objective || 'Ymgynghoriad dwyieithog ac aliniad strategaeth'}.`,
+            English: `Meeting session for ${meeting.title}. Objective: ${meeting.objective || 'Bilingual consultation & strategy alignment'}.`,
+            Spanish: `Sesión de reunión para ${meeting.title}.`,
+            French: `Séance de réunion pour ${meeting.title}.`,
+            German: `Meetingsitzung für ${meeting.title}.`,
+            Hindi: `${meeting.title} के लिए बैठक सत्र।`,
+          },
+        },
+      ];
+
+  const execBrief = `Executive meeting brief for "${meeting.title}" scheduled on ${meeting.date} (${meeting.startTime} - ${meeting.endTime}) in ${meeting.roomName || 'Microsoft Teams'}. Objective: ${meeting.objective || 'Advance bilingual operational standards and Teams collaboration'}. Key attendees: ${speakerNames.join(', ')}.`;
+
+  return {
+    id: `meet-rec-${meeting.id}`,
+    title: meeting.title,
+    date: meeting.date,
+    createdAt: `${meeting.date} • ${meeting.startTime} - ${meeting.endTime}`,
+    meetingId: meeting.id,
+    roomName: meeting.roomName,
+    speakersList: speakerNames,
+    agenda: meeting.agenda,
+    objective: meeting.objective,
+    durationSeconds: durationTotalMins * 60,
+    durationFormatted,
+    mediaType: 'audio',
+    sourceLanguage: 'English',
+    sourceLanguageCode: 'en',
+    detectedTopic: meeting.objective || meeting.title,
+    overallSentiment: 'Positive',
+    fullTranscript: segments.map((s) => `[${s.startTime}] ${s.speaker}: ${s.originalText}`).join('\n'),
+    segments,
+    summary: {
+      executive: execBrief,
+      keyPoints: meeting.agenda?.map((a) => `${a.title} (${a.durationMinutes} mins) - Presenter: ${a.presenter || primarySpeaker}`) || [
+        `Meeting objective: ${meeting.objective || 'Bilingual project delivery'}`,
+        `Location & Facility: ${meeting.roomName || 'Executive Boardroom'}`,
+        `Invited Participants: ${speakerNames.join(', ')}`,
+      ],
+      actionItems: meeting.agenda?.map((a, i) => ({
+        task: `Review deliverables for ${a.title}`,
+        owner: a.presenter || speakerNames[i % speakerNames.length] || primarySpeaker,
+        priority: 'High' as const,
+      })) || [
+        {
+          task: `Finalize bilingual notes for ${meeting.title}`,
+          owner: primarySpeaker,
+          priority: 'High' as const,
+        },
+      ],
+      decisions: [
+        `Confirmed meeting schedule for ${meeting.date} at ${meeting.startTime}.`,
+        `Assigned room: ${meeting.roomName || 'Executive Boardroom'}.`,
+        `Bilingual PDF & DOCX export enabled for attendees.`,
+      ],
+      translatedExecutive: {
+        Welsh: `Briff cyfarfod gweithredol ar gyfer "${meeting.title}" a drefnwyd ar gyfer ${meeting.date} (${meeting.startTime} - ${meeting.endTime}) yn ${meeting.roomName || 'Microsoft Teams'}. Amcan: ${meeting.objective || 'Datblygu safonau gweithredol dwyieithog a chydweithio Teams'}. Prif fynychwyr: ${speakerNames.join(', ')}.`,
+        English: execBrief,
+        Spanish: `Informe ejecutivo para "${meeting.title}" programado para el ${meeting.date} en ${meeting.roomName}.`,
+        French: `Compte-rendu exécutif pour "${meeting.title}" prévu le ${meeting.date} dans ${meeting.roomName}.`,
+        German: `Management-Briefing für "${meeting.title}" am ${meeting.date} im ${meeting.roomName}.`,
+        Hindi: `"${meeting.title}" के लिए कार्यकारी बैठक विवरण जो ${meeting.date} को ${meeting.roomName} में निर्धारित है।`,
+      },
+    },
+    availableLanguages: ['English', 'Welsh', 'French', 'Spanish', 'German', 'Hindi'],
+    activeTargetLanguage: targetLang,
+  };
 }
 
 /**
@@ -48,7 +166,7 @@ export async function exportToPDF(recording: RecordingResult, targetLang: string
     doc.setFontSize(8);
     doc.setTextColor(140, 150, 165);
     doc.text(
-      `OmniVoice Studio Report  •  ${recording.title}  •  Page ${pageCount}`,
+      `Voice Studio AI Report  •  ${recording.title}  •  Page ${pageCount}`,
       margin,
       pageHeight - 10
     );
@@ -69,39 +187,105 @@ export async function exportToPDF(recording: RecordingResult, targetLang: string
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
   doc.setTextColor(190, 205, 225);
-  doc.text('BILINGUAL TRANSCRIPTION & SUMMARY (ENGLISH & CYMRAEG)', margin + 6, y + 16);
+  doc.text('MULTILINGUAL MEETING REPORT & BILINGUAL TRANSCRIPTION', margin + 6, y + 16);
 
   y += 30;
 
   // Title & Metadata Box
   doc.setTextColor(15, 23, 42);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(16);
+  doc.setFontSize(15);
   const titleLines = doc.splitTextToSize(recording.title, contentWidth);
   doc.text(titleLines, margin, y);
-  y += titleLines.length * 7 + 2;
+  y += titleLines.length * 6.5 + 2;
 
-  // Metadata pills / details
+  // Rich Metadata Details Box (Date, Time, Room, Attendees, Languages)
+  const metaBoxHeight = 23;
   doc.setFillColor(241, 245, 249);
-  doc.roundedRect(margin, y, contentWidth, 18, 2, 2, 'F');
+  doc.roundedRect(margin, y, contentWidth, metaBoxHeight, 2, 2, 'F');
 
+  // Row 1
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8);
+  doc.setFontSize(7.5);
   doc.setTextColor(71, 85, 105);
-  doc.text('DURATION:', margin + 4, y + 6);
-  doc.text('SOURCE LANG:', margin + 40, y + 6);
-  doc.text('TARGET LANG:', margin + 85, y + 6);
-  doc.text('SENTIMENT:', margin + 130, y + 6);
+  doc.text('MEETING DATE & TIME:', margin + 4, y + 5);
+  doc.text('LOCATION / ROOM:', margin + 70, y + 5);
+  doc.text('DURATION:', margin + 130, y + 5);
+  doc.text('STATUS:', margin + 155, y + 5);
 
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8.5);
+  doc.setFontSize(8);
   doc.setTextColor(15, 23, 42);
-  doc.text(recording.durationFormatted || '00:00', margin + 4, y + 12);
-  doc.text(recording.sourceLanguage || 'English', margin + 40, y + 12);
-  doc.text(targetLang || 'Spanish', margin + 85, y + 12);
-  doc.text(recording.overallSentiment || 'Neutral', margin + 130, y + 12);
+  const dateStr = recording.date
+    ? `${recording.date} ${recording.createdAt ? `(${recording.createdAt})` : ''}`
+    : (recording.createdAt || new Date().toLocaleDateString());
+  doc.text(dateStr.length > 30 ? dateStr.slice(0, 28) + '..' : dateStr, margin + 4, y + 9.5);
+  const roomStr = recording.roomName || 'Microsoft Teams Hybrid Room';
+  doc.text(roomStr.length > 28 ? roomStr.slice(0, 26) + '..' : roomStr, margin + 70, y + 9.5);
+  doc.text(recording.durationFormatted || '00:00', margin + 130, y + 9.5);
+  doc.text(recording.overallSentiment || 'Confirmed', margin + 155, y + 9.5);
 
-  y += 24;
+  // Row 2
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(71, 85, 105);
+  doc.text('ATTENDEES & SPEAKERS:', margin + 4, y + 15);
+  doc.text('ORIGINAL LANG:', margin + 130, y + 15);
+  doc.text('TARGET LANG:', margin + 155, y + 15);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(15, 23, 42);
+  const speakersList = recording.speakersList?.join(', ') || Array.from(new Set(recording.segments?.map((s) => s.speaker) || [])).join(', ') || 'Nisha Bhatt, Carys Evans, Gareth Thomas';
+  doc.text(speakersList.length > 62 ? speakersList.slice(0, 59) + '...' : speakersList, margin + 4, y + 19.5);
+  doc.text(recording.sourceLanguage || 'English', margin + 130, y + 19.5);
+  doc.text(targetLang || 'Welsh', margin + 155, y + 19.5);
+
+  y += metaBoxHeight + 5;
+
+  // Meeting Objective Banner (if present)
+  if (recording.objective) {
+    checkPageBreak(18);
+    doc.setFillColor(240, 253, 250); // cyan-50
+    doc.setDrawColor(204, 251, 241);
+    doc.roundedRect(margin, y, contentWidth, 12, 1.5, 1.5, 'FD');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(15, 118, 110);
+    doc.text('MEETING OBJECTIVE:', margin + 4, y + 4.5);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(19, 78, 74);
+    const objText = doc.splitTextToSize(recording.objective, contentWidth - 8);
+    doc.text(objText, margin + 4, y + 8.5);
+    y += 15;
+  }
+
+  // Meeting Agenda & Schedule (if present)
+  if (recording.agenda && recording.agenda.length > 0) {
+    checkPageBreak(25);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.setTextColor(15, 23, 42);
+    doc.text('Meeting Agenda & Session Schedule', margin, y);
+    y += 4.5;
+
+    for (const ag of recording.agenda) {
+      checkPageBreak(10);
+      doc.setFillColor(248, 250, 252);
+      doc.roundedRect(margin, y, contentWidth, 8, 1, 1, 'F');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.setTextColor(14, 116, 144);
+      doc.text(`[${ag.durationMinutes || 15}m]  ${ag.title}`, margin + 4, y + 5);
+      if (ag.presenter) {
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(100, 116, 139);
+        doc.text(`Presenter: ${ag.presenter}`, contentWidth - 10, y + 5, { align: 'right' });
+      }
+      y += 9.5;
+    }
+    y += 3;
+  }
 
   // Section: Executive Summary
   checkPageBreak(35);
@@ -325,22 +509,74 @@ export async function exportToDocx(recording: RecordingResult, targetLang: strin
     })
   );
 
-  // Metadata Paragraph
+  // Rich Meeting Metadata
+  const docxDateStr = recording.date
+    ? `${recording.date} ${recording.createdAt ? `(${recording.createdAt})` : ''}`
+    : (recording.createdAt || new Date().toLocaleDateString());
+  const docxRoomStr = recording.roomName || 'Microsoft Teams Hybrid Room';
+  const docxSpeakersStr = recording.speakersList?.join(', ') || Array.from(new Set(recording.segments?.map((s) => s.speaker) || [])).join(', ') || 'Nisha Bhatt, Carys Evans, Gareth Thomas';
+
   children.push(
     new Paragraph({
       children: [
+        new TextRun({ text: 'Meeting Date & Time: ', bold: true }),
+        new TextRun({ text: `${docxDateStr}   |   ` }),
+        new TextRun({ text: 'Location / Room: ', bold: true }),
+        new TextRun({ text: `${docxRoomStr}   |   ` }),
         new TextRun({ text: 'Duration: ', bold: true }),
-        new TextRun({ text: `${recording.durationFormatted}   |   ` }),
-        new TextRun({ text: 'Source Language: ', bold: true }),
-        new TextRun({ text: `${recording.sourceLanguage}   |   ` }),
-        new TextRun({ text: 'Translation Target: ', bold: true }),
-        new TextRun({ text: `${targetLang}   |   ` }),
-        new TextRun({ text: 'Overall Tone: ', bold: true }),
-        new TextRun({ text: `${recording.overallSentiment}` }),
+        new TextRun({ text: `${recording.durationFormatted}` }),
       ],
-      spacing: { after: 300 },
+      spacing: { after: 100 },
     })
   );
+
+  children.push(
+    new Paragraph({
+      children: [
+        new TextRun({ text: 'Attendees & Speakers: ', bold: true }),
+        new TextRun({ text: `${docxSpeakersStr}   |   ` }),
+        new TextRun({ text: 'Original Language: ', bold: true }),
+        new TextRun({ text: `${recording.sourceLanguage}   |   ` }),
+        new TextRun({ text: 'Target Language: ', bold: true }),
+        new TextRun({ text: `${targetLang}` }),
+      ],
+      spacing: { after: 200 },
+    })
+  );
+
+  if (recording.objective) {
+    children.push(
+      new Paragraph({
+        children: [
+          new TextRun({ text: 'Meeting Objective: ', bold: true, color: '0E7490' }),
+          new TextRun({ text: ` ${recording.objective}`, italics: true }),
+        ],
+        spacing: { after: 180 },
+      })
+    );
+  }
+
+  if (recording.agenda && recording.agenda.length > 0) {
+    children.push(
+      new Paragraph({
+        text: 'Meeting Agenda & Session Schedule',
+        heading: HeadingLevel.HEADING_2,
+        spacing: { before: 180, after: 100 },
+      })
+    );
+    for (const ag of recording.agenda) {
+      children.push(
+        new Paragraph({
+          children: [
+            new TextRun({ text: `• [${ag.durationMinutes || 15} mins] `, bold: true, color: '0E7490' }),
+            new TextRun({ text: `${ag.title} ` }),
+            ...(ag.presenter ? [new TextRun({ text: `(Presenter: ${ag.presenter})`, italics: true, color: '64748B' })] : []),
+          ],
+          spacing: { after: 60 },
+        })
+      );
+    }
+  }
 
   // 1. Executive Summary
   children.push(

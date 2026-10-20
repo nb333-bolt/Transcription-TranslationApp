@@ -6,7 +6,7 @@ RUN npm install
 COPY . .
 RUN npm run build
 
-# Stage 2: Production Server for Azure Container Apps / Azure App Service
+# Stage 2: Production Server for Docker, Netlify & Cloud
 FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production

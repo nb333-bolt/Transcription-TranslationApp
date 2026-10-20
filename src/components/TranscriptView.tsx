@@ -26,8 +26,60 @@ export const TranscriptView: React.FC<TranscriptViewProps> = ({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingText, setEditingText] = useState('');
   const [editingTranslation, setEditingTranslation] = useState('');
+  const [translatingId, setTranslatingId] = useState<string | null>(null);
 
   const activeRef = useRef<HTMLDivElement | null>(null);
+
+  const getTranslationText = (seg: TranscriptSegment, lang: string): string => {
+    if (!seg.translations) return '';
+    if (seg.translations[lang]) return seg.translations[lang];
+    const lower = lang.toLowerCase();
+    for (const [key, value] of Object.entries(seg.translations)) {
+      if (key.toLowerCase() === lower || key.toLowerCase().includes(lower) || lower.includes(key.toLowerCase())) {
+        return value;
+      }
+    }
+    return '';
+  };
+
+  const handleTranslateSegment = async (seg: TranscriptSegment) => {
+    if (!seg.originalText || translatingId) return;
+    setTranslatingId(seg.id);
+    try {
+      const storedGeminiKey = localStorage.getItem('voice_studio_gemini_key') || undefined;
+      const storedAzureKey =
+        localStorage.getItem('voice_studio_azure_speech_key') ||
+        localStorage.getItem('voice_studio_azure_key') ||
+        undefined;
+      const storedAzureTranslationKey =
+        localStorage.getItem('voice_studio_azure_translation_key') || undefined;
+      const storedAzureRegion = localStorage.getItem('voice_studio_azure_region') || undefined;
+
+      const res = await fetch('/api/realtime-translate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: seg.originalText,
+          targetLanguage: selectedLanguage,
+          sourceLanguage,
+          geminiKey: storedGeminiKey,
+          azureKey: storedAzureKey,
+          azureTranslationKey: storedAzureTranslationKey,
+          azureRegion: storedAzureRegion,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.translatedText && onSegmentEdit) {
+          onSegmentEdit(seg.id, seg.originalText, data.translatedText);
+        }
+      }
+    } catch (e) {
+      console.warn('Translate segment error:', e);
+    } finally {
+      setTranslatingId(null);
+    }
+  };
 
   useEffect(() => {
     if (activeSegmentId && activeRef.current) {
@@ -119,7 +171,7 @@ export const TranscriptView: React.FC<TranscriptViewProps> = ({
           filteredSegments.map((seg) => {
             const isActive = seg.id === activeSegmentId;
             const isEditing = seg.id === editingId;
-            const transText = seg.translations?.[selectedLanguage] || '';
+            const transText = getTranslationText(seg, selectedLanguage);
 
             return (
               <div
@@ -206,9 +258,26 @@ export const TranscriptView: React.FC<TranscriptViewProps> = ({
                     onClick={() => onSegmentClick(seg.startSeconds)}
                   >
                     <p className="text-slate-300 leading-relaxed font-normal">{seg.originalText}</p>
-                    <p className="text-cyan-200/90 leading-relaxed font-normal">
-                      {transText || <span className="text-slate-500 italic">No translation</span>}
-                    </p>
+                    <div className="text-cyan-200/90 leading-relaxed font-normal">
+                      {transText ? (
+                        <p>{transText}</p>
+                      ) : (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleTranslateSegment(seg);
+                          }}
+                          disabled={translatingId === seg.id}
+                          className="inline-flex items-center gap-1 text-[11px] text-cyan-400 hover:text-cyan-300 font-medium underline cursor-pointer disabled:opacity-50"
+                        >
+                          {translatingId === seg.id ? (
+                            <span>Translating into {selectedLanguage}...</span>
+                          ) : (
+                            <span>Translate to {selectedLanguage}</span>
+                          )}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>

@@ -1,25 +1,27 @@
 # AI Transcription & Translation App
 
-> Real-time multilingual speech-to-text, neural translation, and intelligent meeting summarization powered by Google Gemini, with Microsoft Teams and Outlook calendar integration.
+> Real-time multilingual speech-to-text, neural translation, and intelligent meeting summarization powered by OpenAI (Whisper & GPT-4o), with Microsoft Teams and Outlook calendar integration.
 
-[![Google Gemini](https://img.shields.io/badge/AI-Google%20Gemini%20Flash-4285F4?logo=google&logoColor=white)](https://aistudio.google.com/)
+[![OpenAI](https://img.shields.io/badge/AI-OpenAI%20GPT--4o%20%26%20Whisper-00A67E?logo=openai&logoColor=white)](https://platform.openai.com/)
 [![React](https://img.shields.io/badge/Frontend-React%20%2B%20TypeScript-61DAFB?logo=react&logoColor=black)](https://react.dev/)
 [![Tailwind CSS](https://img.shields.io/badge/Styles-Tailwind%20CSS-38B2AC?logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
 [![Express](https://img.shields.io/badge/Backend-Node.js%20%2B%20Express-000000?logo=node.js&logoColor=white)](https://nodejs.org/)
-[![Microsoft 365](https://img.shields.io/badge/Integration-Teams%20%26%20Outlook-0078D4?logo=microsoftteams&logoColor=white)](https://teams.microsoft.com/)
+[![Microsoft Teams](https://img.shields.io/badge/Integration-Microsoft%20Teams%20%26%20Outlook-0078D4?logo=microsoftteams&logoColor=white)](https://teams.microsoft.com/)
+[![Netlify](https://img.shields.io/badge/Deploy-Netlify-00C7B7?logo=netlify&logoColor=white)](https://netlify.com/)
 
 ---
 
 ## 🌟 Key Features
 
-- **Multilingual Speech-to-Text**: Fast transcription with speaker diarization (names and roles) using Google Gemini multimodal models (`gemini-3.8-flash` and `gemini-3.1-flash-lite`).
-- **Welsh & Global Language Translation**: Real-time translation supporting Welsh (Cymraeg), English, French, Spanish, German, Hindi, and more.
-- **Executive Summarization**: Automated extraction of executive overviews, key discussion points, and prioritized action items with assignees.
-- **Direct Meeting Invites & M365 Integration**:
-  - One-click Outlook Web calendar invite generation
-  - Microsoft Teams video join links
-  - RFC 5545 `.ics` universal calendar file download with 15-minute reminders
-  - Microsoft Teams Adaptive Card channel posting
+- **OpenAI Speech-to-Text (Whisper)**: High-fidelity audio transcription verbatim across languages using `whisper-1`.
+- **OpenAI Neural Translation & Intelligence (GPT-4o & GPT-4o-mini)**:
+  - Lightning-fast real-time translation into Welsh (Cymraeg), English, French, Spanish, German, Hindi, and more.
+  - Multi-speaker diarization matching participants by their real Name & Surname from the organizational directory.
+- **Executive Summarization**: Automated extraction of concise executive overviews (TL;DR), key takeaways, decisions, and prioritized action items with assignees.
+- **Microsoft Teams & Outlook Calendar Integration**:
+  - Microsoft Teams Adaptive Card channel dispatching.
+  - RFC 5545 `.ics` universal calendar file download for Microsoft Outlook and Exchange Online.
+  - Direct attendee email invites and calendar holds.
 - **Document & Subtitle Export**: One-click download as PDF, Word (.docx), Subtitles (.srt), and plain text (.txt).
 - **Audio & Video Player**: Synchronized interactive transcript player with timestamp seeking and audio waveform visualizer.
 
@@ -28,9 +30,9 @@
 ## 🚀 Quick Start Guide
 
 ### 1. Prerequisites
-- **Node.js**: v18.0.0 or higher
-- **npm** or **bun**
-- **Google Gemini API Key**: Free API key from [Google AI Studio](https://aistudio.google.com/app/apikey)
+- **Node.js**: v18.0.0 or higher (v20 LTS recommended)
+- **npm** or **pnpm**
+- **OpenAI API Key**: Obtain from [OpenAI Platform](https://platform.openai.com/api-keys)
 
 ### 2. Clone and Install
 
@@ -51,114 +53,119 @@ Copy the example environment configuration:
 cp .env.example .env
 ```
 
-Open `.env` in your editor and insert your Google Gemini API Key:
+Open `.env` in your editor and insert your OpenAI API Key:
 
 ```env
-GEMINI_API_KEY="AIzaSyYourGeminiApiKeyHere"
+OPENAI_API_KEY="sk-proj-YourOpenAiApiKeyHere"
 ```
 
-*(Optional Microsoft 365 credentials can also be added for live Azure AD / Teams synchronization)*:
+*(Optional Microsoft Teams webhook URL can also be added for live channel notifications)*:
+
 ```env
-AZURE_CLIENT_ID=""
-AZURE_TENANT_ID=""
-AZURE_CLIENT_SECRET=""
-TEAMS_WEBHOOK_URL=""
+TEAMS_WEBHOOK_URL="https://outlook.office.com/webhook/..."
 ```
 
-### 4. Run the Application
+### 4. Run Locally
+
+Start the full-stack development server (Express backend + Vite frontend):
 
 ```bash
 npm run dev
 ```
 
-Open your browser at **`http://localhost:3000`**.
+Open [http://localhost:3000](http://localhost:3000) in your web browser.
 
 ---
 
-## 🔑 How to Get Your Gemini API Key
+## 🔑 How to Get Your OpenAI API Key
 
-1. Visit **[Google AI Studio](https://aistudio.google.com/app/apikey)**.
-2. Sign in with your Google account.
-3. Click **"Create API Key"** (or **"Get API Key"**).
-4. Select or create a Google Cloud project.
-5. Copy your API Key (format starts with `AIzaSy...`).
-6. Paste it into your `.env` file as `GEMINI_API_KEY="your_key"`.
-
-> 💡 **Free Tier**: Google AI Studio provides a free usage tier with generous limits for development and personal projects.
+1. Go to the [OpenAI Platform](https://platform.openai.com/).
+2. Sign in or create a developer account.
+3. In the sidebar or dashboard, click **API Keys**.
+4. Click **"+ Create new secret key"**.
+5. Give it a descriptive name (e.g. `ai-transcription-app`) and copy the secret key (starting with `sk-proj-...`).
+6. Paste it into your `.env` file as `OPENAI_API_KEY="your_key"`, or enter it directly in the in-app **Live OpenAI API Key Tester** in the **GitHub & OpenAI** tab!
 
 ---
 
-## 📦 How to Push this App to GitHub
+## 🐙 Push to GitHub
 
-Follow these steps in your terminal to publish this codebase to your own GitHub repository:
+The local Git repository is pre-initialized on branch `main` and all application files are committed.
 
-### Step 1: Create a New GitHub Repository
-1. Go to **[GitHub: New Repository](https://github.com/new)**.
-2. Enter a repository name (for example, `ai-transcription-translation-app`).
-3. Set the visibility to **Public** or **Private**.
-4. **Do not** initialize with a README, .gitignore, or license (they are already included in this project).
-5. Click **"Create repository"**.
+To push to your personal or organization GitHub account:
 
-### Step 2: Push Local Code to GitHub
+### Step 1: Create a Repository on GitHub
+1. Open [github.com/new](https://github.com/new).
+2. Set the repository name (e.g. `ai-transcription-translation-app`).
+3. Keep it **Public** or **Private** and leave "Initialize this repository with a README" **unchecked** (we already have a complete codebase ready).
+4. Click **Create repository**.
 
-Run the following commands in the project root directory:
+### Step 2: Link & Push via Terminal
+
+Run these three commands in your project root:
 
 ```bash
 # 1. Ensure you are on the main branch
 git branch -M main
 
-# 2. Link your new GitHub repository (replace with your GitHub URL)
+# 2. Add your GitHub repository as remote origin
 git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPOSITORY.git
 
-# 3. Push the codebase
+# 3. Push to GitHub
 git push -u origin main
 ```
 
-*(If you ever make local changes later, commit and push anytime with)*:
+### Subsequent Commits
+
+Whenever you make future updates:
+
 ```bash
 git add .
-git commit -m "Update application features"
+git commit -m "Update features"
 git push
 ```
 
 ---
 
-## 🔒 Safe Credential Management (No Leaked Keys)
+## 🔒 Security & Environment Protection
 
-- The `.gitignore` file is pre-configured to **strictly ignore all `.env*` files** while only tracking `.env.example`.
-- Your `GEMINI_API_KEY` will **never** be committed to GitHub.
-- When deploying to production or configuring GitHub Actions, set `GEMINI_API_KEY` as a secret or environment variable:
-  - **GitHub Actions**: Repository Settings ➔ Secrets and variables ➔ Actions ➔ New repository secret (Name: `GEMINI_API_KEY`).
-  - **Azure**: App Service / Container App ➔ Configuration ➔ Application settings.
+- Your `OPENAI_API_KEY` will **never** be committed to GitHub.
+- The `.gitignore` is pre-configured to strictly ignore `.env`, `.env.local`, `.env.*`.
+- When deploying to production or configuring GitHub Actions, set `OPENAI_API_KEY` as a secret or environment variable:
+  - **GitHub Actions**: Repository Settings ➔ Secrets and variables ➔ Actions ➔ New repository secret (Name: `OPENAI_API_KEY`).
   - **Netlify**: Site configuration ➔ Environment variables.
 
 ---
 
-## 🚢 Production Deployment
+## 🌐 Deploy to Netlify
 
-### Option A: Azure Container Apps / App Service
+The repository includes a pre-configured `netlify.toml` for zero-configuration client-side routing.
+
+1. Go to [app.netlify.com](https://app.netlify.com) and click **"Add new site" > "Import an existing project"**.
+2. Connect your GitHub account and select this repository.
+3. Build Settings are detected automatically:
+   - **Build Command**: `npm run build`
+   - **Publish Directory**: `dist`
+4. In **Site configuration > Environment variables**, add:
+   - `OPENAI_API_KEY` = your OpenAI API Key.
+5. Click **Deploy Site**.
+
+---
+
+## 🐳 Docker Deployment
+
+To build and run as a standalone container:
+
 ```bash
-# Build docker container
+# Build Docker image
 docker build -t omnivoice-app .
 
-# Or deploy via Azure CLI
-az containerapp up \
-  --name omnivoice-app \
-  --source . \
-  --ingress external \
-  --target-port 3000 \
-  --env-vars GEMINI_API_KEY="YOUR_KEY"
+# Run container on port 3000
+docker run -p 3000:3000 -e OPENAI_API_KEY="sk-proj-..." omnivoice-app
 ```
-
-### Option B: Netlify
-Deploy frontend using the pre-configured `netlify.toml`:
-```bash
-npm run build
-npx netlify deploy --prod --dir=dist
-```
-Set `GEMINI_API_KEY` in Netlify Site Settings ➔ Environment Variables.
 
 ---
 
 ## 📄 License
-This project is licensed under the MIT License.
+
+MIT License. Built for seamless multilingual collaboration.

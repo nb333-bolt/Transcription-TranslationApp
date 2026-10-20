@@ -126,11 +126,18 @@ export const DEFAULT_MEETING_ROOMS: MeetingRoom[] = [
   },
 ];
 
+const getTodayDateStr = () => new Date().toISOString().split('T')[0];
+const getTomorrowDateStr = () => {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  return d.toISOString().split('T')[0];
+};
+
 export const DEFAULT_SCHEDULED_MEETINGS: ScheduledMeeting[] = [
   {
     id: 'meet-101',
     title: 'Bilingual Strategy & Public Services Review',
-    date: '2026-10-08',
+    date: getTodayDateStr(),
     startTime: '10:00',
     endTime: '11:00',
     roomId: 'room-1',
@@ -171,13 +178,13 @@ export const DEFAULT_SCHEDULED_MEETINGS: ScheduledMeeting[] = [
     m365SyncEnabled: true,
     teamsMeetingLink: 'https://teams.microsoft.com/l/meetup-join/19%3ameeting_bilingual_strategy',
     invitesSent: true,
-    invitesSentAt: '2026-10-07 09:15 AM',
+    invitesSentAt: 'Today 09:15 AM',
     status: 'upcoming',
   },
   {
     id: 'meet-102',
     title: 'Digital Health Bilingual Consultation',
-    date: '2026-10-09',
+    date: getTomorrowDateStr(),
     startTime: '14:00',
     endTime: '15:30',
     roomId: 'room-2',
